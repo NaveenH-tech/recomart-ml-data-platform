@@ -73,10 +73,10 @@ Workflow Orchestration
 | Data Processing | Pandas |
 | Database | SQLite |
 | Data Validation | Great Expectations |
-| Feature Store | Feast (or equivalent) |
+| Feature Store | Feast |
 | Data Versioning | DVC |
 | Experiment Tracking | MLflow |
-| Workflow Orchestration | Prefect *(or Apache Airflow if retained)* |
+| Workflow Orchestration | Prefect *(or Apache Airflow)* |
 | Machine Learning | Scikit-Learn |
 | Visualisation | Matplotlib, Plotly |
 
@@ -155,18 +155,56 @@ python src/orchestration/<pipeline_entrypoint>.py
 
 ---
 
+## Project Setup
+
+### Prerequisites
+
+Ensure the following software is installed before running the project:
+
+- Python 3.11+
+- Git
+- Git Large File Storage (Git LFS)
+
+Install project dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Initialize Git LFS (one-time setup):
+
+```bash
+git lfs install
+```
+
+After cloning the repository, download all LFS-managed datasets and artifacts:
+
+```bash
+git lfs pull
+```
+
+Run the environment verification script:
+
+```bash
+python health_check.py
+```
+
+The project uses **Git LFS** to manage large datasets and binary artifacts such as source datasets, processed data, and SQLite warehouse files, ensuring the Git repository remains lightweight while supporting reproducible data pipelines.
+
+---
+
 ## Key Features
 
-- Multi-source data ingestion
-- Data quality validation
-- Data preprocessing and transformation
-- Feature engineering
-- Structured SQLite data warehouse
-- Feature store integration
-- Recommendation model training
-- MLflow experiment tracking
-- Workflow orchestration
-- Modular and extensible architecture
+- Multi-source data ingestion from CSV files and REST APIs
+- Immutable raw data storage with layered data architecture
+- Automated data validation and quality assessment
+- Data preparation and feature engineering pipeline
+- Structured SQLite data warehouse for analytics and ML
+- Centralized feature management using a Feature Store
+- Recommendation model training and evaluation
+- Experiment tracking with MLflow
+- End-to-end pipeline orchestration
+- Modular, configurable, and extensible architecture
 
 ---
 
