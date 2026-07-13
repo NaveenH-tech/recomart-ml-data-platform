@@ -1,0 +1,12 @@
+[project]
+name = "recomart-ml-data-platform"
+version = "1.0.0"
+description = "Enterprise ML Data Platform"
+requires-python = ">=3.11"
+
+authors = [
+    {name="BITS MTech AI & ML GRP-32"}
+]
+dependencies = []
+[tool.setuptools]
+package-dir = {""="src"}
