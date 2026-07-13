@@ -53,7 +53,7 @@ Plotly
 Matplotlib
 
 ## Repository Structure
-
+<p>
 recomart-ml-data-platform/
 │
 ├── config/
@@ -108,7 +108,7 @@ recomart-ml-data-platform/
 ├── dvc.yaml
 ├── .gitignore
 └── LICENSE
-
+</p>
 ## Quick Start
 
 pip install -r requirements.txt
