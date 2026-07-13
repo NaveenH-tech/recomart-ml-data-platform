@@ -1,31 +1,23 @@
-project:
+datasets:
+  users:
+    path: data/source/users.csv
+  products:
+    path: data/source/products.csv
+  reviews:
+    path: data/source/reviews.csv
+  sessions:
+    path: data/source/sessions.csv
+  clickstream:
+    path: data/source/clickstream.csv
 
-  name: RecoMart ML Data Platform
+external_api:
+  url: https://dummyjson.com/products
 
-  version: 1.0
+raw_storage:
+  root: data/raw/
 
-paths:
+external_storage:
+  root: data/external/  
 
-  raw_data: data/raw
-
-  validated_data: data/validated
-
-  processed_data: data/processed
-
-  warehouse: data/warehouse
-
-  external_data: data/external
-
-  feature_store: data/feature_store
-
-  logs: logs
-
-database:
-
-  sqlite_path: data/warehouse/recomart.db
-
-logging:
-
-  config: config/logging.yaml
-
-random_seed: 42
+logs:
+  file: logs/ingestion.log
