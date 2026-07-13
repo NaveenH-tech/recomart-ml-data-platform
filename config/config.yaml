@@ -1,0 +1,31 @@
+project:
+
+  name: RecoMart ML Data Platform
+
+  version: 1.0
+
+paths:
+
+  raw_data: data/raw
+
+  validated_data: data/validated
+
+  processed_data: data/processed
+
+  warehouse: data/warehouse
+
+  external_data: data/external
+
+  feature_store: data/feature_store
+
+  logs: logs
+
+database:
+
+  sqlite_path: data/warehouse/recomart.db
+
+logging:
+
+  config: config/logging.yaml
+
+random_seed: 42
