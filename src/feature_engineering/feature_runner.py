@@ -38,15 +38,23 @@ def run_feature_pipeline():
         warehouse_dir.mkdir(parents=True, exist_ok=True)
  
         db_path = warehouse_dir / "recomart_warehouse.db"
+        
+        # Drop existing database to ensure fresh start
+        if db_path.exists():
+            db_path.unlink()
+            logger.info(
+                f"Deleted existing warehouse database: {db_path}",
+                extra={"pipeline_step": "DB_CLEANUP"}
+            )
  
         # ----------------------------------------------------------
         # INPUT FILES
         # ----------------------------------------------------------
  
-        users_file = processed_dir / "users" / "users.csv"
-        products_file = processed_dir / "products" / "products.csv"
-        reviews_file = processed_dir / "reviews" / "reviews.csv"
-        sessions_file = processed_dir / "sessions" / "sessions.csv"
+        users_file = processed_dir / "users.csv"
+        products_file = processed_dir / "products.csv"
+        reviews_file = processed_dir / "reviews.csv"
+        sessions_file = processed_dir / "sessions.csv"
  
         # ----------------------------------------------------------
         # FILE VALIDATION
@@ -246,28 +254,30 @@ def run_feature_pipeline():
             user_item_matrix.T
         )
  
+        # Create DataFrame with product IDs
+        product_ids = user_item_matrix.columns
         similarity_df = pd.DataFrame(
             similarity_matrix,
-            index=user_item_matrix.columns,
-            columns=user_item_matrix.columns
+            index=product_ids,
+            columns=product_ids
         )
- 
+        
+        # Reset index and column names to avoid conflicts during stack
+        similarity_df.index.name = None
+        similarity_df.columns.name = None
+        
+        # Stack, reset index, and rename columns
         similarity_long = (
             similarity_df.stack()
-            .reset_index()
+            .reset_index(name='similarity_score')
         )
- 
-        similarity_long.columns = [
-            "product_id",
-            "similar_product_id",
-            "similarity_score"
-        ]
+        similarity_long.columns = ['product_id', 'similar_product_id', 'similarity_score']
  
         # Remove self-similarity records
  
         similarity_long = similarity_long[
-            similarity_long["product_id"]
-            != similarity_long["similar_product_id"]
+            similarity_long['product_id']
+            != similarity_long['similar_product_id']
         ]
  
         logger.info(
@@ -302,35 +312,55 @@ def run_feature_pipeline():
         # ----------------------------------------------------------
         # CREATE WAREHOUSE TABLES
         # ----------------------------------------------------------
- 
-        cursor.execute("""
+        
+        # Only create columns that will exist in the data
+        user_col_types = {
+            "user_id": "TEXT PRIMARY KEY",
+            "age": "INTEGER",
+            "gender": "TEXT",
+            "city": "TEXT",
+            "membership": "TEXT",
+            "signup_year": "INTEGER",
+            "user_activity_frequency": "INTEGER",
+            "user_avg_rating": "REAL",
+            "created_timestamp": "TEXT"
+        }
+        
+        # Filter to only columns that exist in transformed_users
+        user_cols = [col for col in user_col_types.keys() if col in transformed_users.columns]
+        user_cols_sql = ", ".join([f"{col} {user_col_types[col]}" for col in user_cols])
+        
+        cursor.execute("DROP TABLE IF EXISTS dim_users")
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS dim_users (
-                user_id TEXT PRIMARY KEY,
-                age INTEGER,
-                gender TEXT,
-                city TEXT,
-                membership TEXT,
-                signup_year INTEGER,
-                user_activity_frequency INTEGER,
-                user_avg_rating REAL,
-                created_timestamp TEXT
+                {user_cols_sql}
             )
         """)
- 
-        cursor.execute("""
+        
+        product_col_types = {
+            "product_id": "TEXT PRIMARY KEY",
+            "product_name": "TEXT",
+            "category": "TEXT",
+            "brand": "TEXT",
+            "price": "REAL",
+            "item_avg_rating": "REAL",
+            "item_interaction_count": "INTEGER",
+            "description": "TEXT",
+            "created_timestamp": "TEXT"
+        }
+        
+        # Filter to only columns that exist in transformed_products
+        product_cols = [col for col in product_col_types.keys() if col in transformed_products.columns]
+        product_cols_sql = ", ".join([f"{col} {product_col_types[col]}" for col in product_cols])
+        
+        cursor.execute("DROP TABLE IF EXISTS dim_products")
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS dim_products (
-                product_id TEXT PRIMARY KEY,
-                product_name TEXT,
-                category TEXT,
-                brand TEXT,
-                price REAL,
-                item_avg_rating REAL,
-                item_interaction_count INTEGER,
-                description TEXT,
-                created_timestamp TEXT
+                {product_cols_sql}
             )
         """)
  
+        cursor.execute("DROP TABLE IF EXISTS fact_interactions")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS fact_interactions (
                 review_id TEXT PRIMARY KEY,
@@ -345,6 +375,7 @@ def run_feature_pipeline():
             )
         """)
  
+        cursor.execute("DROP TABLE IF EXISTS item_similarity")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS item_similarity (
                 product_id TEXT,
@@ -358,8 +389,9 @@ def run_feature_pipeline():
         # ----------------------------------------------------------
         # LOAD DATA INTO WAREHOUSE
         # ----------------------------------------------------------
- 
-        users_sql_payload = transformed_users[[
+        
+        # Select only columns that exist in the dataframe for users
+        users_columns = [
             "user_id",
             "age",
             "gender",
@@ -369,9 +401,11 @@ def run_feature_pipeline():
             "user_activity_frequency",
             "user_avg_rating",
             "created_timestamp"
-        ]]
- 
-        products_sql_payload = transformed_products[[
+        ]
+        users_sql_payload = transformed_users[[col for col in users_columns if col in transformed_users.columns]]
+        
+        # Select only columns that exist in the dataframe for products
+        products_columns = [
             "product_id",
             "product_name",
             "category",
@@ -381,15 +415,18 @@ def run_feature_pipeline():
             "item_interaction_count",
             "description",
             "created_timestamp"
-        ]]
- 
-        interactions_sql_payload = reviews_df[[
+        ]
+        products_sql_payload = transformed_products[[col for col in products_columns if col in transformed_products.columns]]
+        
+        # Select only columns that exist in the dataframe for interactions
+        interactions_columns = [
             "review_id",
             "user_id",
             "product_id",
             "rating",
             "sentiment_encoded"
-        ]]
+        ]
+        interactions_sql_payload = reviews_df[[col for col in interactions_columns if col in reviews_df.columns]]
  
         users_sql_payload.to_sql(
             "dim_users",
