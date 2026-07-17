@@ -55,6 +55,7 @@ def run_feature_pipeline():
         products_file = processed_dir / "products.csv"
         reviews_file = processed_dir / "reviews.csv"
         sessions_file = processed_dir / "sessions.csv"
+        clickstream_file = processed_dir / "clickstream.csv"
  
         # ----------------------------------------------------------
         # FILE VALIDATION
@@ -64,7 +65,8 @@ def run_feature_pipeline():
             users_file,
             products_file,
             reviews_file,
-            sessions_file
+            sessions_file,
+            clickstream_file
         ]
  
         missing_files = [
@@ -86,7 +88,7 @@ def run_feature_pipeline():
         products_df = pd.read_csv(products_file)
         reviews_df = pd.read_csv(reviews_file)
         sessions_df = pd.read_csv(sessions_file)
- 
+        clickstream_df = pd.read_csv(clickstream_file)
         logger.info(
             "Processed datasets loaded successfully.",
             extra={"pipeline_step": "LOAD_DATA"}
@@ -118,7 +120,76 @@ def run_feature_pipeline():
                 raise ValueError(
                     f"Required column '{col}' missing in reviews.csv"
                 )
+        # ----------------------------------------------------------
+        # REQUIRED COLUMN VALIDATION - CLICKSTREAM
+        # ----------------------------------------------------------
+        required_clickstream_columns = [
+            "event_id",
+            "session_id",
+            "user_id",
+            "product_id",
+            "event_timestamp",
+            "event_type",
+            "page",
+            "device",
+            "browser",
+            "traffic_source",
+            "dwell_time_sec",
+            "recommendation_flag"
+        ]
  
+        missing_clickstream_columns = [
+            col
+            for col in required_clickstream_columns
+            if col not in clickstream_df.columns
+        ]
+ 
+        if missing_clickstream_columns:
+            raise ValueError(
+                f"Missing columns in clickstream.csv: {missing_clickstream_columns}"
+            )
+ 
+        if "event_hour" not in clickstream_df.columns or "event_weekday" not in clickstream_df.columns:
+            if "event_timestamp" not in clickstream_df.columns:
+                raise ValueError(
+                    "clickstream.csv must contain event_timestamp to derive event_hour and event_weekday"
+                )
+ 
+            event_timestamp = pd.to_datetime(
+                clickstream_df["event_timestamp"],
+                errors="coerce"
+            )
+ 
+            if "event_hour" not in clickstream_df.columns:
+                clickstream_df["event_hour"] = event_timestamp.dt.hour.fillna(0)
+ 
+            if "event_weekday" not in clickstream_df.columns:
+                clickstream_df["event_weekday"] = event_timestamp.dt.weekday.fillna(0)
+ 
+        # ----------------------------------------------------------
+        # OPTIONAL TYPE CLEANING FOR CLICKSTREAM
+        # ----------------------------------------------------------
+ 
+        clickstream_df["dwell_time_sec"] = pd.to_numeric(
+            clickstream_df["dwell_time_sec"],
+            errors="coerce"
+        ).fillna(0)
+ 
+        clickstream_df["recommendation_flag"] = pd.to_numeric(
+            clickstream_df["recommendation_flag"],
+            errors="coerce"
+        ).fillna(0).astype(int)
+ 
+        clickstream_df["event_hour"] = pd.to_numeric(
+            clickstream_df["event_hour"],
+            errors="coerce"
+        ).fillna(0)
+ 
+        clickstream_df["event_weekday"] = pd.to_numeric(
+            clickstream_df["event_weekday"],
+            errors="coerce"
+        ).fillna(0)
+
         # ----------------------------------------------------------
         # FEATURE 1 : USER ACTIVITY FREQUENCY
         # ----------------------------------------------------------
@@ -281,8 +352,99 @@ def run_feature_pipeline():
         ]
  
         logger.info(
-            f"Generated {len(similarity_long)} similarity records."
+            f"Generated {len(similarity_long)} similarity records.",
+            extra={"pipeline_step": "ITEM_SIMILARITY"}
         )
+
+        # ----------------------------------------------------------
+        # CLICKSTREAM FEATURES FOR FACT_INTERACTIONS
+        # ----------------------------------------------------------
+        logger.info(
+            "Generating clickstream features for fact_interactions...",
+            extra={"pipeline_step": "CLICKSTREAM_FACT_FEATURES"}
+        )
+
+        interaction_clickstream = (
+            clickstream_df
+            .groupby(["user_id", "product_id"])
+            .agg(
+                click_count=("event_id", "count"),
+                avg_dwell_time=("dwell_time_sec", "mean"),
+                recommendation_views=("recommendation_flag", "sum"),
+                distinct_sessions=("session_id", "nunique"),
+                unique_event_types=("event_type", "nunique"),
+                avg_event_hour=("event_hour", "mean"),
+                avg_event_weekday=("event_weekday", "mean")
+            )
+            .reset_index()
+        )
+
+        logger.info(
+            f"Generated {len(interaction_clickstream)} user-product clickstream aggregates.",
+            extra={"pipeline_step": "CLICKSTREAM_FACT_FEATURES"}
+        )
+
+        # ----------------------------------------------------------
+        # ENRICH REVIEWS WITH CLICKSTREAM FEATURES
+        # ----------------------------------------------------------
+        interactions_sql_payload = reviews_df.merge(
+            interaction_clickstream,
+            on=["user_id", "product_id"],
+            how="left"
+        )
+
+        clickstream_fact_columns = [
+            "click_count",
+            "avg_dwell_time",
+            "recommendation_views",
+            "distinct_sessions",
+            "unique_event_types",
+            "avg_event_hour",
+            "avg_event_weekday"
+        ]
+
+        interactions_sql_payload[clickstream_fact_columns] = (
+            interactions_sql_payload[clickstream_fact_columns]
+            .fillna(0)
+        )
+
+        integer_fact_columns = [
+            "click_count",
+            "recommendation_views",
+            "distinct_sessions",
+            "unique_event_types"
+        ]
+ 
+        for col in integer_fact_columns:
+            interactions_sql_payload[col] = (
+                interactions_sql_payload[col]
+                .astype(int)
+            )
+ 
+        # Keep only columns needed for warehouse fact table
+        interactions_columns = [
+            "review_id",
+            "user_id",
+            "product_id",
+            "rating",
+            "sentiment_encoded",
+            "click_count",
+            "avg_dwell_time",
+            "recommendation_views",
+            "distinct_sessions",
+            "unique_event_types",
+            "avg_event_hour",
+            "avg_event_weekday"
+        ]
+ 
+        interactions_sql_payload = interactions_sql_payload[
+            [
+                col
+                for col in interactions_columns
+                if col in interactions_sql_payload.columns
+            ]
+        ]
+
  
         # ----------------------------------------------------------
         # FEATURE STORE TIMESTAMP
@@ -359,7 +521,10 @@ def run_feature_pipeline():
                 {product_cols_sql}
             )
         """)
- 
+                # ----------------------------------------------------------
+        # UPDATED FACT_INTERACTIONS SCHEMA WITH CLICKSTREAM FEATURES
+        # ----------------------------------------------------------
+
         cursor.execute("DROP TABLE IF EXISTS fact_interactions")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS fact_interactions (
@@ -368,6 +533,13 @@ def run_feature_pipeline():
                 product_id TEXT,
                 rating REAL,
                 sentiment_encoded INTEGER,
+                click_count INTEGER,
+                avg_dwell_time REAL,
+                recommendation_views INTEGER,
+                distinct_sessions INTEGER,
+                unique_event_types INTEGER,
+                avg_event_hour REAL,
+                avg_event_weekday REAL,
                 FOREIGN KEY(user_id)
                     REFERENCES dim_users(user_id),
                 FOREIGN KEY(product_id)
@@ -424,9 +596,20 @@ def run_feature_pipeline():
             "user_id",
             "product_id",
             "rating",
-            "sentiment_encoded"
+            "sentiment_encoded",
+            "click_count",
+            "avg_dwell_time",
+            "recommendation_views",
+            "distinct_sessions",
+            "unique_event_types",
+            "avg_event_hour",
+            "avg_event_weekday"
         ]
-        interactions_sql_payload = reviews_df[[col for col in interactions_columns if col in reviews_df.columns]]
+        interactions_sql_payload = interactions_sql_payload[[
+            col
+            for col in interactions_columns
+            if col in interactions_sql_payload.columns
+        ]]
  
         users_sql_payload.to_sql(
             "dim_users",
@@ -481,6 +664,12 @@ def run_feature_pipeline():
             "SELECT COUNT(*) cnt FROM item_similarity",
             conn
         ).iloc[0]["cnt"]
+
+        fact_schema = pd.read_sql_query(
+            "PRAGMA table_info(fact_interactions)",
+            conn
+        )
+
  
         conn.close()
  
@@ -488,15 +677,18 @@ def run_feature_pipeline():
         # SUMMARY OUTPUT
         # ----------------------------------------------------------
  
-        print("\n" + "=" * 65)
+        print("\n" + "=" * 70)
         print("TASK 6 FEATURE ENGINEERING COMPLETED")
-        print("=" * 65)
-        print(f"Users Loaded            : {db_users_count:,}")
-        print(f"Products Loaded         : {db_products_count:,}")
-        print(f"Interactions Loaded     : {db_interactions_count:,}")
-        print(f"Similarity Records      : {similarity_count:,}")
-        print(f"Warehouse Database      : {db_path}")
-        print("=" * 65 + "\n")
+        print("=" * 70)
+        print(f"Users Loaded             : {db_users_count:,}")
+        print(f"Products Loaded          : {db_products_count:,}")
+        print(f"Interactions Loaded      : {db_interactions_count:,}")
+        print(f"Similarity Records       : {similarity_count:,}")
+        print(f"Warehouse Database       : {db_path}")
+        print("-" * 70)
+        print("fact_interactions columns:")
+        print(", ".join(fact_schema["name"].tolist()))
+        print("=" * 70 + "\n")
  
         logger.info(
             "Feature Engineering completed successfully.",
