@@ -2,8 +2,16 @@
 
 ## Objective
 
-Create features suitable for recommendation algorithms, such as: 1. User activity frequency 2. Average rating per user/item 3. Co-occurrence or similarity-based features.
-Store transformed data in a structured database or warehouse.
+Create recommendation-ready features from processed datasets to support collaborative filtering and recommendation algorithms.
+The feature engineering pipeline generates:
+1.User Activity Frequency
+2.Average Rating per User
+3.Average Rating per Item
+4.Item Popularity Metrics
+5.Clickstream-Based Behavioral Features
+6.Cosine Similarity-Based Features
+Structured Warehouse Tables for Model Training and Analytics
+The transformed data is stored in a structured SQLite warehouse for downstream machine learning and recommendation workflows..
 
 ## Input
 
@@ -13,6 +21,7 @@ The module reads the following datasets from the processed data layer:
 - reviews.csv
 - users.csv
 - sessions.csv
+- clickstream.csv
 
 Location:
 
@@ -20,16 +29,45 @@ Location:
 data/processed/
 ```
 
-## Preprocessing Steps
+## Preprocessing & Processing Steps
 
-The current implementation performs the following operations:
-
-1. User activity frequency .
-2. Average rating per user/item .
-3. Cosine Similarity
-3. Fill missing values:
-   - Text columns → "Unknown"
-   - Numeric columns → 0
+Before feature engineering and warehouse loading, the pipeline performs several preprocessing and validation operations to ensure data quality, consistency, and reliable feature generation.
+# 1. Input File Validation
+The pipeline verifies that all required source datasets are available.
+users.csv
+products.csv
+reviews.csv
+sessions.csv
+clickstream.csv
+# 2. Validation Logic
+File exists
+File is accessible
+File is not empty
+# 3. Error Example
+FileNotFoundError:
+Missing input files:
+['data/processed/clickstream
+# 4. Schema Validation
+The pipeline validates mandatory columns in each dataset before processing.
+# 5. Data Type Standardization
+Several clickstream columns are converted into numeric format before aggregation.
+# 6. Missing Value Handling
+The pipeline handles missing values before generating features.
+# 7. Session-Based Aggregation
+Input
+session_id   user_id
+S1           U001
+S2           U001
+S3           U002
+Output
+user_id   user_activity_frequency
+U001      2
+U002      1
+# 8. Review-Based Aggregation
+# 9. Clickstream Feature Aggregation
+# 10. Similarity Computation
+# 11. Timestamp Generation
+# 12. Warehouse Loading and Validation
 
 ## Output
 
