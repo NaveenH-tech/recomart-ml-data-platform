@@ -64,10 +64,15 @@ user_id   user_activity_frequency
 U001      2
 U002      1
 # 8. Review-Based Aggregation
+Ratings are aggregated to create recommendation features.
 # 9. Clickstream Feature Aggregation
+Behavioral features are generated from browsing activity.
 # 10. Similarity Computation
+The pipeline generates item similarity features using Cosine Similarity.
 # 11. Timestamp Generation
+A processing timestamp is attached to all warehouse records.
 # 12. Warehouse Loading and Validation
+After feature generation, the pipeline loads all transformed data into SQLite.
 
 ## Output
 
