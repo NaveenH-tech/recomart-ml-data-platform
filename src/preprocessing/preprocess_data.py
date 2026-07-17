@@ -65,6 +65,35 @@ save_csv(df, PROCESSED_DIR / "products_processed.csv")
 
 log("products", dup, encoded, normalized)
 
+# ---------------------------------------------------------
+# Convert text fields to numeric
+# ---------------------------------------------------------
+
+# Example: "4.6 out of 5 stars" -> 4.6
+df["avg_rating"] = (
+    df["avg_rating"]
+    .astype(str)
+    .str.extract(r"([0-9]+\.?[0-9]*)")[0]
+)
+df["avg_rating"] = pd.to_numeric(df["avg_rating"], errors="coerce")
+
+# Example: "1,654 ratings" -> 1654
+df["rating_count"] = (
+    df["rating_count"]
+    .astype(str)
+    .str.replace(",", "", regex=False)
+    .str.extract(r"([0-9]+)")[0]
+)
+df["rating_count"] = pd.to_numeric(df["rating_count"], errors="coerce")
+
+encoded = ["category", "brand", "availability"]
+
+normalized = [
+    "price",
+    "avg_rating",
+    "rating_count",
+    "bestseller_rank",
+]
 
 # ---------------------------------------------------------
 # Reviews
