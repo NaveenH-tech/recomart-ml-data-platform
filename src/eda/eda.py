@@ -1,74 +1,150 @@
 """
-Basic Exploratory Data Analysis
+Exploratory Data Analysis (EDA)
+
+This module generates visualizations and summary statistics
+for the processed RecoMart datasets.
 """
 
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import pandas as pd
 
-PROCESSED_DIR = Path("data/processed")
-REPORT_DIR = Path("reports")
+from src.eda.plots import (
+    plot_missing_values,
+    plot_category_distribution,
+    plot_price_distribution,
+    plot_rating_distribution,
+    plot_age_distribution,
+    plot_membership_distribution,
+    plot_session_duration,
+    plot_device_distribution,
+    plot_traffic_source,
+    plot_top_products,
+    plot_top_users,
+    plot_interaction_distribution,
+    plot_interaction_heatmap,
+    plot_correlation_matrix,
+)
 
-REPORT_DIR.mkdir(parents=True, exist_ok=True)
-
-
-# ---------- Products ----------
-
-products = pd.read_csv(PROCESSED_DIR / "products.csv")
-
-if "category" in products.columns:
-    plt.figure(figsize=(10, 5))
-    products["category"].value_counts().plot(kind="bar")
-    plt.title("Product Category Distribution")
-    plt.tight_layout()
-    plt.savefig(REPORT_DIR / "product_categories.png")
-    plt.close()
-
-
-# ---------- Reviews ----------
-
-reviews = pd.read_csv(PROCESSED_DIR / "reviews.csv")
-
-rating_column = None
-
-for col in ["rating", "ratings"]:
-    if col in reviews.columns:
-        rating_column = col
-        break
-
-if rating_column:
-    plt.figure(figsize=(6, 4))
-    reviews[rating_column].hist(bins=5)
-    plt.title("Rating Distribution")
-    plt.tight_layout()
-    plt.savefig(REPORT_DIR / "ratings_distribution.png")
-    plt.close()
+from src.eda.statistics import (
+    generate_summary,
+    calculate_sparsity,
+)
 
 
-# ---------- Top Products ----------
+BASE_DIR = Path(__file__).resolve().parents[2]
 
-product_column = None
+PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
-for col in ["product_id", "asin"]:
-    if col in reviews.columns:
-        product_column = col
-        break
+REPORT_DIR = BASE_DIR / "reports"
+FIGURE_DIR = REPORT_DIR / "figures"
 
-if product_column:
-    top_products = (
-        reviews[product_column]
-        .value_counts()
-        .head(10)
+FIGURE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def load_datasets():
+    """Load processed datasets."""
+
+    products = pd.read_csv(PROCESSED_DIR / "products_processed.csv")
+    reviews = pd.read_csv(PROCESSED_DIR / "reviews_processed.csv")
+    users = pd.read_csv(PROCESSED_DIR / "users_processed.csv")
+    sessions = pd.read_csv(PROCESSED_DIR / "sessions_processed.csv")
+    clickstream = pd.read_csv(PROCESSED_DIR / "clickstream_processed.csv")
+
+    return products, reviews, users, sessions, clickstream
+
+
+def main():
+
+    print("=" * 60)
+    print("Running Exploratory Data Analysis")
+    print("=" * 60)
+
+    (
+        products,
+        reviews,
+        users,
+        sessions,
+        clickstream,
+    ) = load_datasets()
+
+    # --------------------------------------------------
+    # Dataset Summary
+    # --------------------------------------------------
+
+    generate_summary(
+        products,
+        reviews,
+        users,
+        sessions,
+        clickstream,
+        REPORT_DIR,
     )
 
-    plt.figure(figsize=(10, 5))
-    top_products.plot(kind="bar")
-    plt.title("Top 10 Popular Products")
-    plt.tight_layout()
-    plt.savefig(REPORT_DIR / "top_products.png")
-    plt.close()
+    # --------------------------------------------------
+    # Missing Values
+    # --------------------------------------------------
+
+    plot_missing_values(
+        products,
+        reviews,
+        users,
+        sessions,
+        clickstream,
+        FIGURE_DIR,
+    )
+
+    # --------------------------------------------------
+    # Products
+    # --------------------------------------------------
+
+    plot_category_distribution(products, FIGURE_DIR)
+
+    plot_price_distribution(products, FIGURE_DIR)
+
+    plot_rating_distribution(products, FIGURE_DIR)
+
+    plot_top_products(reviews, FIGURE_DIR)
+
+    # --------------------------------------------------
+    # Users
+    # --------------------------------------------------
+
+    plot_age_distribution(users, FIGURE_DIR)
+
+    plot_membership_distribution(users, FIGURE_DIR)
+
+    plot_top_users(reviews, FIGURE_DIR)
+
+    # --------------------------------------------------
+    # Sessions
+    # --------------------------------------------------
+
+    plot_session_duration(sessions, FIGURE_DIR)
+
+    plot_device_distribution(sessions, FIGURE_DIR)
+
+    plot_traffic_source(sessions, FIGURE_DIR)
+
+    # --------------------------------------------------
+    # Interactions
+    # --------------------------------------------------
+
+    plot_interaction_distribution(reviews, FIGURE_DIR)
+
+    plot_interaction_heatmap(reviews, FIGURE_DIR)
+
+    calculate_sparsity(reviews, REPORT_DIR)
+
+    # --------------------------------------------------
+    # Correlation
+    # --------------------------------------------------
+
+    plot_correlation_matrix(products, FIGURE_DIR)
+
+    print("\nEDA Completed Successfully.")
+    print(f"Reports saved to: {REPORT_DIR}")
 
 
-print("EDA completed.")
-print(f"Reports saved to: {REPORT_DIR}")
+if __name__ == "__main__":
+    main()
