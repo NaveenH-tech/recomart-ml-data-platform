@@ -61,7 +61,7 @@ normalized = [
 df, _ = encode_columns(df, encoded)
 df = normalize_columns(df, normalized)
 
-save_csv(df, PROCESSED_DIR / "products_processed.csv")
+save_csv(df, PROCESSED_DIR / "products.csv")
 
 log("products", dup, encoded, normalized)
 
@@ -116,7 +116,7 @@ df, _ = encode_columns(df, encoded)
 
 df = extract_datetime_features(df, "review_date")
 
-save_csv(df, PROCESSED_DIR / "reviews_processed.csv")
+save_csv(df, PROCESSED_DIR / "reviews.csv")
 
 log("reviews", dup, encoded, normalized)
 
@@ -153,7 +153,7 @@ df = normalize_columns(df, normalized)
 
 df = extract_datetime_features(df, "signup_date")
 
-save_csv(df, PROCESSED_DIR / "users_processed.csv")
+save_csv(df, PROCESSED_DIR / "users.csv")
 
 log("users", dup, encoded, normalized)
 
@@ -189,7 +189,7 @@ df = normalize_columns(df, normalized)
 
 df = extract_datetime_features(df, "session_start")
 
-save_csv(df, PROCESSED_DIR / "sessions_processed.csv")
+save_csv(df, PROCESSED_DIR / "sessions.csv")
 
 log("sessions", dup, encoded, normalized)
 
@@ -224,7 +224,7 @@ df = normalize_columns(df, normalized)
 
 df = extract_datetime_features(df, "event_timestamp")
 
-save_csv(df, PROCESSED_DIR / "clickstream_processed.csv")
+save_csv(df, PROCESSED_DIR / "clickstream.csv")
 
 log("clickstream", dup, encoded, normalized)
 
