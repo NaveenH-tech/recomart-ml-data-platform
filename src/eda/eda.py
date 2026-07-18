@@ -45,11 +45,11 @@ FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 def load_datasets():
     """Load processed datasets."""
 
-    products = pd.read_csv(PROCESSED_DIR / "products_processed.csv")
-    reviews = pd.read_csv(PROCESSED_DIR / "reviews_processed.csv")
-    users = pd.read_csv(PROCESSED_DIR / "users_processed.csv")
-    sessions = pd.read_csv(PROCESSED_DIR / "sessions_processed.csv")
-    clickstream = pd.read_csv(PROCESSED_DIR / "clickstream_processed.csv")
+    products = pd.read_csv(PROCESSED_DIR / "products.csv")
+    reviews = pd.read_csv(PROCESSED_DIR / "reviews.csv")
+    users = pd.read_csv(PROCESSED_DIR / "users.csv")
+    sessions = pd.read_csv(PROCESSED_DIR / "sessions.csv")
+    clickstream = pd.read_csv(PROCESSED_DIR / "clickstream.csv")
 
     return products, reviews, users, sessions, clickstream
 
