@@ -16,7 +16,7 @@ from src.preprocessing.normalization import normalize_columns
 from src.preprocessing.datetime_features import extract_datetime_features
 from src.preprocessing.utils import load_csv, save_csv
 
-RAW_DIR = Path("data/raw")
+RAW_DIR = Path("data/source")
 PROCESSED_DIR = Path("data/processed")
 REPORT_DIR = Path("reports")
 
