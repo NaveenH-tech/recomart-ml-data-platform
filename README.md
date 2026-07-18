@@ -92,7 +92,7 @@ recomart-ml-data-platform/
 │   └── logging.yaml
 │
 ├── data/
-│   ├── raw/                 # Raw ingested datasets
+│   ├── source/                 # Raw ingested datasets
 │   ├── validated/           # Quality-checked datasets
 │   ├── processed/           # Cleaned & transformed datasets
 │   ├── warehouse/           # SQLite warehouse
