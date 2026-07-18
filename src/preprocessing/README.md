@@ -27,7 +27,7 @@ The project uses six datasets.
 RecoMart-ML-Data-Platform/
 
 ├── data/
-│   ├── raw/
+│   ├── source/
 │   └── processed/
 │
 ├── reports/
@@ -38,7 +38,6 @@ RecoMart-ML-Data-Platform/
 │
 └── src/
     ├── preprocessing/
-    │   ├── __init__.py
     │   ├── preprocess_data.py
     │   ├── cleaning.py
     │   ├── encoding.py
